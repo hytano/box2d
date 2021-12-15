@@ -1,4 +1,6 @@
 build/
+testbed/tests/*.tmp
+testbed/tests/*.TMP
 imgui.ini
 settings.ini
 .vscode/
