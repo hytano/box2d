@@ -61,6 +61,7 @@ set (TESTBED_SOURCE_FILES
 	tests/skier.cpp
 	tests/slider_crank_1.cpp
 	tests/slider_crank_2.cpp
+	tests/slider_crank_closed_loop.cpp
 	tests/theo_jansen.cpp
 	tests/tiles.cpp
 	tests/time_of_impact.cpp

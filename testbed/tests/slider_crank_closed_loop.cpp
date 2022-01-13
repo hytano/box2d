@@ -22,86 +22,124 @@
 
 #include "test.h"
 
+#include <chrono>
+#include <iostream>
+
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
 // A basic slider crank created for GDC tutorial: Understanding Constraints
-class SliderCrank1 : public Test
+class SliderCrankCL : public Test
 {
 public:
-	SliderCrank1()
+	SliderCrankCL()
 	{
+		dir_change_timer_ = steady_clock::now();
+
+		m_world->SetGravity(b2Vec2_zero);
+
 		b2Body* ground = NULL;
 		{
 			b2BodyDef bd;
-            bd.position.Set(0.0f, 17.0f);
+			bd.position.Set(0.0f, 17.0f);
 			ground = m_world->CreateBody(&bd);
 		}
-        
+
 		{
 			b2Body* prevBody = ground;
-            
+
 			// Define crank.
 			{
 				b2PolygonShape shape;
 				shape.SetAsBox(4.0f, 1.0f);
-                
+
 				b2BodyDef bd;
 				bd.type = b2_dynamicBody;
+
 				bd.position.Set(-8.0f, 20.0f);
 				b2Body* body = m_world->CreateBody(&bd);
-				body->CreateFixture(&shape, 2.0f);
-                
+				body->CreateFixture(&shape, 0.10f);
+
 				b2RevoluteJointDef rjd;
 				rjd.Initialize(prevBody, body, b2Vec2(-12.0f, 20.0f));
-				m_world->CreateJoint(&rjd);
-                
+				rjd.enableMotor = true;
+				rjd.motorSpeed = 3.141;
+				rjd.maxMotorTorque = 2000.0;
+				m_motor = static_cast<b2RevoluteJoint*>(m_world->CreateJoint(&rjd));
+
 				prevBody = body;
 			}
-            
+
 			// Define connecting rod
 			{
 				b2PolygonShape shape;
 				shape.SetAsBox(8.0f, 1.0f);
-                
+
 				b2BodyDef bd;
 				bd.type = b2_dynamicBody;
+
 				bd.position.Set(4.0f, 20.0f);
 				b2Body* body = m_world->CreateBody(&bd);
-				body->CreateFixture(&shape, 2.0f);
-                
+				body->CreateFixture(&shape, 0.10f);
+
 
 				b2RevoluteJointDef rjd;
 				rjd.Initialize(prevBody, body, b2Vec2(-4.0f, 20.0f));
 				m_world->CreateJoint(&rjd);
-                
+
 				prevBody = body;
 			}
-            
+
 			// Define piston
 			{
+				// Unsere Masse
 				b2PolygonShape shape;
 				shape.SetAsBox(3.0f, 3.0f);
-                
+
 				b2BodyDef bd;
 				bd.type = b2_dynamicBody;
 				bd.fixedRotation = true;
 				bd.position.Set(12.0f, 20.0f);
 				b2Body* body = m_world->CreateBody(&bd);
-				body->CreateFixture(&shape, 2.0f);
-                
+				m_mass = body->CreateFixture(&shape, 2.0f);
+
 				b2RevoluteJointDef rjd;
 				rjd.Initialize(prevBody, body, b2Vec2(12.0f, 20.0f));
 				m_world->CreateJoint(&rjd);
-                
+
 				b2PrismaticJointDef pjd;
 				pjd.Initialize(ground, body, b2Vec2(12.0f, 17.0f), b2Vec2(1.0f, 0.0f));
 				m_world->CreateJoint(&pjd);
 			}
-  		}
+		}
 	}
-    
+
+	b2RevoluteJoint* m_motor{ nullptr };
+	b2Fixture* m_mass{ nullptr };
+
+	float m_mass_x_offset{ 0.0 }; // könnte man nutzen, um die null in die mitte zu legen. der wert müsste sich irgendwie aus den beiden kurbeln ergeben
+
+	steady_clock::time_point dir_change_timer_;
+
+	void Step(Settings& settings) override
+	{
+		float position = m_mass->GetBody()->GetPosition().x;
+
+		//std::cout << "position: " << position << "\n";
+
+		if (steady_clock::now() - dir_change_timer_ > 10s) {
+			std::cout << "Change Direction\n";
+			m_motor->SetMotorSpeed(-m_motor->GetMotorSpeed());
+			dir_change_timer_ = steady_clock::now();
+		}
+
+		Test::Step(settings);
+	}
+
 	static Test* Create()
 	{
-		return new SliderCrank1;
+		return new SliderCrankCL;
 	}
 };
 
-static int testIndex = RegisterTest("Examples", "Slider Crank 1", SliderCrank1::Create);
+static int testIndex = RegisterTest("905", "Slider Crank Closed Loop", SliderCrankCL::Create);
