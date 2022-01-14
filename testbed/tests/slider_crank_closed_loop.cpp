@@ -19,7 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
-
+#include "settings.h"
 #include "test.h"
 
 #include <chrono>
@@ -51,20 +51,28 @@ public:
 			// Define crank.
 			{
 				b2PolygonShape shape;
-				shape.SetAsBox(4.0f, 1.0f);
+				const float crank_width = 4.0;
+				shape.SetAsBox(crank_width * 2, 1.0f);
 
 				b2BodyDef bd;
 				bd.type = b2_dynamicBody;
-
 				bd.position.Set(-8.0f, 20.0f);
 				b2Body* body = m_world->CreateBody(&bd);
+
 				body->CreateFixture(&shape, 0.10f);
+				body->SetFixedRotation(false);
+
+				b2MassData md;
+				body->GetMassData(&md);
+				md.center.x -= crank_width;
+				body->SetMassData(&md);
 
 				b2RevoluteJointDef rjd;
 				rjd.Initialize(prevBody, body, b2Vec2(-12.0f, 20.0f));
-				rjd.enableMotor = true;
-				rjd.motorSpeed = 3.141;
-				rjd.maxMotorTorque = 2000.0;
+
+				//rjd.enableMotor = true;
+				//rjd.motorSpeed = 3.141;
+				//rjd.maxMotorTorque = 2000.0;
 				m_motor = static_cast<b2RevoluteJoint*>(m_world->CreateJoint(&rjd));
 
 				prevBody = body;
@@ -116,7 +124,7 @@ public:
 
 	b2RevoluteJoint* m_motor{ nullptr };
 	b2Fixture* m_mass{ nullptr };
-
+	float torque_{ -1000.0 };
 	float m_mass_x_offset{ 0.0 }; // könnte man nutzen, um die null in die mitte zu legen. der wert müsste sich irgendwie aus den beiden kurbeln ergeben
 
 	steady_clock::time_point dir_change_timer_;
@@ -129,10 +137,19 @@ public:
 
 		if (steady_clock::now() - dir_change_timer_ > 10s) {
 			std::cout << "Change Direction\n";
-			m_motor->SetMotorSpeed(-m_motor->GetMotorSpeed());
+			//m_motor->SetMotorSpeed(-m_motor->GetMotorSpeed());
+			std::cout << "Reaction Torque: " << m_motor->GetMotorTorque(settings.m_hertz) << "Nm\n";
+			torque_ = -torque_;
 			dir_change_timer_ = steady_clock::now();
+
+			b2MassData md;
+			m_mass->GetMassData(&md);
+			auto velo = m_mass->GetBody()->GetLinearVelocity();
+			std::cout << "Mass: " << md.mass << "kg\n" << "Velo: " << velo.x << "m/s\n";
+
 		}
 
+		m_motor->GetBodyB()->ApplyTorque(torque_, true);
 		Test::Step(settings);
 	}
 
